@@ -13,25 +13,8 @@ export default function App() {
   const Stack = createNativeStackNavigator();
   return (
     <View style={styles.container}><NativeBaseProvider >
-       <NavigationContainer>
-      <Stack.Navigator
-          // screenOptions={{
-          //   headerShown: false,
-          // }}
-        >
-          <Stack.Screen name="Login" component={Login} />
-          <Stack.Screen name="Signup" component={Signup} />
-          <Stack.Screen
-            name="ConfirmationEmail"
-            component={ConfirmationEmail}
-          />
-          {/* <Stack.Screen name="ForgotPassword" component={ForgotPassword} /> */}
-          <Stack.Screen name="ResetPassword" component={ResetPassword} />
-        </Stack.Navigator>
-        <Login/>
-        <ConfirmationEmail/>
-<Signup/>
-      </NavigationContainer>
+      <Navigation/>
+ 
       </NativeBaseProvider>
       
     </View>
@@ -42,6 +25,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     width: '100%',
+    
     backgroundColor: '#fff',
     justifyContent: 'center',
   },

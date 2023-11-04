@@ -93,7 +93,7 @@ const Navigation = () => {
           />
 
          
-          <Tab.Screen
+<Tab.Screen
             name="AddNote"
             disabled= {true}
             navigationOptions={{
@@ -132,7 +132,6 @@ const Navigation = () => {
             }}
             component={AddNote}
           />
-          
            <Tab.Screen
             options={{
               tabBarIcon: ({ focused }) => (

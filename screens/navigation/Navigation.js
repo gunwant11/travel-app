@@ -164,8 +164,6 @@ const Navigation = () => {
             name="ConfirmationEmail"
             component={ConfirmationEmail}
           />
-          <Stack.Screen name="ForgotPassword" component={ForgotPassword} />
-          <Stack.Screen name="ResetPassword" component={ResetPassword} />
         </Stack.Navigator>)}
     </NavigationContainer>
   );

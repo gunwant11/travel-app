@@ -1,7 +1,8 @@
 
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Text } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
+import BottomDrawer from './BottomDrawer'
 
 const MapViewComponent = () => {
   return (
@@ -23,6 +24,11 @@ const MapViewComponent = () => {
           description="Some description"
         />
       </MapView>
+      <BottomDrawer onDrawerStateChange={()=> console.log('first')}>
+        <View>
+          <Text>Bottom Drawer</Text>
+        </View>
+      </BottomDrawer>
     </View>
   );
 };
@@ -30,7 +36,7 @@ const MapViewComponent = () => {
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    height: 1000,
+    height: 720,
     width: 400,
     justifyContent: 'flex-end',
     alignItems: 'center',

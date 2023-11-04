@@ -92,7 +92,6 @@ const Navigation = () => {
             component={MapViewComponent}
           />
 
-         
 <Tab.Screen
             name="AddNote"
             disabled= {true}

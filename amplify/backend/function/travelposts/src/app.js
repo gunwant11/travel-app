@@ -1,20 +1,19 @@
 
-
-const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
+const AWS = require('aws-sdk')
 const awsServerlessExpressMiddleware = require('aws-serverless-express/middleware')
-const bodyParser = require('body-parser')
 const express = require('express')
 
-const ddbClient = new DynamoDBClient({ region: process.env.TABLE_REGION });
-const ddbDocClient = DynamoDBDocumentClient.from(ddbClient);
+const bodyParser = require('body-parser')
+
+AWS.config.update({ region: process.env.TABLE_REGION });  
+const dynamodb = new AWS.DynamoDB.DocumentClient();
 
 let tableName = "posts";
 if (process.env.ENV && process.env.ENV !== "NONE") {
   tableName = tableName + '-' + process.env.ENV;
 }
 
-const userIdPresent = false; // TODO: update in case is required to use that definition
+const userIdPresent = true; // TODO: update in case is required to use that definition
 const partitionKeyName = "postId";
 const partitionKeyType = "S";
 const sortKeyName = "createdAt";
@@ -47,30 +46,13 @@ const convertUrlType = (param, type) => {
   }
 }
 
-/************************************
-* HTTP Get method to list objects *
-************************************/
 
-app.get(path, async function(req, res) {
-  var params = {
-    TableName: tableName,
-    Select: 'ALL_ATTRIBUTES',
-  };
-
-  try {
-    const data = await ddbDocClient.send(new ScanCommand(params));
-    res.json(data.Items);
-  } catch (err) {
-    res.statusCode = 500;
-    res.json({error: 'Could not load items: ' + err.message});
-  }
-});
 
 /************************************
- * HTTP Get method to query objects *
+ * HTTP Get method to get all posts of a user *
  ************************************/
 
-app.get(path + hashKeyPath, async function(req, res) {
+app.get(path , async function(req, res) {
   const condition = {}
   condition[partitionKeyName] = {
     ComparisonOperator: 'EQ'
@@ -92,65 +74,67 @@ app.get(path + hashKeyPath, async function(req, res) {
     KeyConditions: condition
   }
 
-  try {
-    const data = await ddbDocClient.send(new QueryCommand(queryParams));
-    res.json(data.Items);
-  } catch (err) {
-    res.statusCode = 500;
-    res.json({error: 'Could not load items: ' + err.message});
+  await dynamodb.query(queryParams, (err, data) => {
+    if (err) {
+      res.statusCode = 500;
+      res.json({error: err, url: req.url});
+    } else {
+      res.json(data.Items);
+    }
   }
+  )
 });
 
 /*****************************************
- * HTTP Get method for get single object *
+ * HTTP Get method for getting a single post of a user *
  *****************************************/
 
-app.get(path + '/object' + hashKeyPath + sortKeyPath, async function(req, res) {
-  const params = {};
+app.get(path + '/:postId', async function(req, res) {
+  const condition = {}
+  condition[partitionKeyName] = {
+    ComparisonOperator: 'EQ'
+  }
+
   if (userIdPresent && req.apiGateway) {
-    params[partitionKeyName] = req.apiGateway.event.requestContext.identity.cognitoIdentityId || UNAUTH;
+    condition[partitionKeyName]['AttributeValueList'] = [req.apiGateway.event.requestContext.identity.cognitoIdentityId || UNAUTH];
   } else {
-    params[partitionKeyName] = req.params[partitionKeyName];
     try {
-      params[partitionKeyName] = convertUrlType(req.params[partitionKeyName], partitionKeyType);
-    } catch(err) {
-      res.statusCode = 500;
-      res.json({error: 'Wrong column type ' + err});
-    }
-  }
-  if (hasSortKey) {
-    try {
-      params[sortKeyName] = convertUrlType(req.params[sortKeyName], sortKeyType);
-    } catch(err) {
+      condition[partitionKeyName]['AttributeValueList'] = [convertUrlType(req.params[partitionKeyName], partitionKeyType)];
+    } catch (err) {
       res.statusCode = 500;
       res.json({error: 'Wrong column type ' + err});
     }
   }
 
-  let getItemParams = {
+  const postId = req.params.postId;
+
+  const createdAt = req.params.createdAt;
+
+  const params = {
     TableName: tableName,
-    Key: params
-  }
-
-  try {
-    const data = await ddbDocClient.send(new GetCommand(getItemParams));
-    if (data.Item) {
-      res.json(data.Item);
-    } else {
-      res.json(data) ;
+    Key: {
+      postId: postId,
+      createdAt: createdAt
     }
-  } catch (err) {
-    res.statusCode = 500;
-    res.json({error: 'Could not load items: ' + err.message});
-  }
+  };
+
+  dynamodb.get(params, (err, data) => {
+    if (err) {
+      res.statusCode = 500;
+      res.json({error: err, url: req.url});
+    } else {
+      res.json(data.Item);
+    }
+  });
 });
 
+ 
 
 /************************************
 * HTTP put method for insert object *
 *************************************/
 
-app.put(path, async function(req, res) {
+app.put(path, function(req, res) {
 
   if (userIdPresent) {
     req.body['userId'] = req.apiGateway.event.requestContext.identity.cognitoIdentityId || UNAUTH;
@@ -160,13 +144,14 @@ app.put(path, async function(req, res) {
     TableName: tableName,
     Item: req.body
   }
-  try {
-    let data = await ddbDocClient.send(new PutCommand(putItemParams));
-    res.json({ success: 'put call succeed!', url: req.url, data: data })
-  } catch (err) {
-    res.statusCode = 500;
-    res.json({ error: err, url: req.url, body: req.body });
-  }
+  dynamodb.put(putItemParams, (err, data) => {
+    if (err) {
+      res.statusCode = 500;
+      res.json({ error: err, url: req.url, body: req.body });
+    } else{
+      res.json({ success: 'put call succeed!', url: req.url, data: data })
+    }
+  });
 });
 
 /************************************
@@ -179,64 +164,75 @@ app.post(path, async function(req, res) {
     req.body['userId'] = req.apiGateway.event.requestContext.identity.cognitoIdentityId || UNAUTH;
   }
 
+  console.log('req.body', req.body)
+
   let putItemParams = {
     TableName: tableName,
     Item: req.body
   }
-  try {
-    let data = await ddbDocClient.send(new PutCommand(putItemParams));
-    res.json({ success: 'post call succeed!', url: req.url, data: data })
-  } catch (err) {
-    res.statusCode = 500;
-    res.json({ error: err, url: req.url, body: req.body });
+  await dynamodb.put(putItemParams, (err, data) => {
+    if (err) {
+      console.log('err', err)
+      res.statusCode = 500;
+      res.json({ error: err, url: req.url, body: req.body });
+    } else {
+      console.log('data', data)
+      res.json({ success: 'post call succeed!', url: req.url, data: data })
+    }
   }
+  )
+    
 });
 
 /**************************************
 * HTTP remove method to delete object *
 ***************************************/
 
-app.delete(path + '/object' + hashKeyPath + sortKeyPath, async function(req, res) {
-  const params = {};
-  if (userIdPresent && req.apiGateway) {
-    params[partitionKeyName] = req.apiGateway.event.requestContext.identity.cognitoIdentityId || UNAUTH;
-  } else {
-    params[partitionKeyName] = req.params[partitionKeyName];
-     try {
-      params[partitionKeyName] = convertUrlType(req.params[partitionKeyName], partitionKeyType);
-    } catch(err) {
-      res.statusCode = 500;
-      res.json({error: 'Wrong column type ' + err});
-    }
-  }
-  if (hasSortKey) {
-    try {
-      params[sortKeyName] = convertUrlType(req.params[sortKeyName], sortKeyType);
-    } catch(err) {
-      res.statusCode = 500;
-      res.json({error: 'Wrong column type ' + err});
-    }
-  }
+app.delete(path ,async function  (req, res)  {
+  try{
+    // asscess payload from request
+    var newData = JSON.stringify(req.body)
 
-  let removeItemParams = {
-    TableName: tableName,
-    Key: params
-  }
+    const payload = await JSON.parse(newData);
+    // get journeyId from payload
+    const postId = payload.postId;
+    // get createdAt from payload
+    const createdAt = payload.createdAt;
 
-  try {
-    let data = await ddbDocClient.send(new DeleteCommand(removeItemParams));
-    res.json({url: req.url, data: data});
-  } catch (err) {
+    if(userIdPresent && req.apiGateway){
+      req.body['userId'] = req.apiGateway.event.requestContext.identity.cognitoIdentityId || UNAUTH;
+    }
+
+    if(!journeyId || !createdAt){
+      res.statusCode = 500;
+      res.json({error: 'PostID or createdAt is missing', body: req.body});
+    }
+    
+
+    const params = {
+      TableName: tableName,
+      Key: {
+        postId: postId,
+        createdAt: createdAt
+      }
+    };
+
+    dynamodb.delete( params , (err, data)=> {
+      if (err) {
+        res.statusCode = 500;
+        res.json({error: err , params: params});
+      } else {
+        res.json({ data: data, params: params});
+      }
+    });
+
+  }
+  catch(e){
     res.statusCode = 500;
-    res.json({error: err, url: req.url});
+    res.json({error: e.message, url: req.url, body: req.body});
   }
+ 
 });
 
-app.listen(3000, function() {
-  console.log("App started")
-});
 
-// Export the app object. When executing the application local this does nothing. However,
-// to port it to AWS Lambda we will create a wrapper around that will load the app from
-// this file
 module.exports = app

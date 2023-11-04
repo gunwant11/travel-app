@@ -2,21 +2,25 @@ import { extendTheme, NativeBaseProvider,  } from "native-base";
 import { StyleSheet, View } from 'react-native';
 import Navigation from './screens/navigation/Navigation';
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import Login from "./components/AuthComponents/Login.js";
-import Signup from "./components/AuthComponents/Signup.js";
-import ForgotPassword from "./components/AuthComponents/ForgotPassword.js";
-import ResetPassword from "./components/AuthComponents/ResetPassword.js";
-import ConfirmationEmail from "./components/AuthComponents/ConfirmationEmail.js";
-import { NavigationContainer } from "@react-navigation/native";
+import { Amplify } from 'aws-amplify';
+import awsExports from './src/aws-exports';
+import { useEffect } from "react";
+import { createPost } from "./services/postService";
+Amplify.configure(awsExports);
 
 export default function App() {
   const Stack = createNativeStackNavigator();
+
+
+  useEffect(() => {
+    createPost('title', 'description', 'image', 'latitude', 'longitude', 'address', 'content', 'descHTML')
+  },[]
+  )
+
   return (
     <View style={styles.container}><NativeBaseProvider >
       <Navigation/>
- 
       </NativeBaseProvider>
-      
     </View>
   );
 }
@@ -30,3 +34,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+

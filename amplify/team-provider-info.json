@@ -12,11 +12,20 @@
       "AmplifyAppId": "d25l6oduq59c58"
     },
     "categories": {
-      "function": {
-        "travelposts": {}
-      },
       "auth": {
         "travelapp": {}
+      },
+      "function": {
+        "travelposts": {
+          "deploymentBucketName": "amplify-travelapp-dev-191414-deployment",
+          "s3Key": "amplify-builds/travelposts-314a5a6f576336694635-build.zip"
+        }
+      },
+      "storage": {
+        "zendb": {}
+      },
+      "api": {
+        "travelapis": {}
       }
     }
   }

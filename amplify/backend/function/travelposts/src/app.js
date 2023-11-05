@@ -2,8 +2,13 @@
 const AWS = require('aws-sdk')
 const awsServerlessExpressMiddleware = require('aws-serverless-express/middleware')
 const express = require('express')
-
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
 const bodyParser = require('body-parser')
+
+
+const ddbClient = new DynamoDBClient({ region: process.env.TABLE_REGION });
+const ddbDocClient = DynamoDBDocumentClient.from(ddbClient);
 
 AWS.config.update({ region: process.env.TABLE_REGION });  
 const dynamodb = new AWS.DynamoDB.DocumentClient();
@@ -60,21 +65,13 @@ app.get(path , async function(req, res) {
 
   if (userIdPresent && req.apiGateway) {
     condition[partitionKeyName]['AttributeValueList'] = [req.apiGateway.event.requestContext.identity.cognitoIdentityId || UNAUTH ];
-  } else {
-    try {
-      condition[partitionKeyName]['AttributeValueList'] = [ convertUrlType(req.params[partitionKeyName], partitionKeyType) ];
-    } catch(err) {
-      res.statusCode = 500;
-      res.json({error: 'Wrong column type ' + err});
-    }
-  }
-
+  } 
   let queryParams = {
     TableName: tableName,
     KeyConditions: condition
   }
 
-  await dynamodb.query(queryParams, (err, data) => {
+   dynamodb.query(queryParams, (err, data) => {
     if (err) {
       res.statusCode = 500;
       res.json({error: err, url: req.url});
@@ -170,17 +167,15 @@ app.post(path, async function(req, res) {
     TableName: tableName,
     Item: req.body
   }
-  await dynamodb.put(putItemParams, (err, data) => {
-    if (err) {
-      console.log('err', err)
-      res.statusCode = 500;
-      res.json({ error: err, url: req.url, body: req.body });
-    } else {
-      console.log('data', data)
-      res.json({ success: 'post call succeed!', url: req.url, data: data })
-    }
+   
+  try{
+    const data = await ddbDocClient.send(new PutCommand(putItemParams));
+    res.json({ success: 'post call succeed!', url: req.url, data: data })
   }
-  )
+  catch(e){
+    res.statusCode = 500;
+    res.json({error: e.message, url: req.url, body: req.body});
+  }
     
 });
 
@@ -203,7 +198,7 @@ app.delete(path ,async function  (req, res)  {
       req.body['userId'] = req.apiGateway.event.requestContext.identity.cognitoIdentityId || UNAUTH;
     }
 
-    if(!journeyId || !createdAt){
+    if(!postId || !createdAt){
       res.statusCode = 500;
       res.json({error: 'PostID or createdAt is missing', body: req.body});
     }

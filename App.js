@@ -5,17 +5,12 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Amplify } from 'aws-amplify';
 import awsExports from './src/aws-exports';
 import { useEffect } from "react";
-import { createPost } from "./services/postService";
+import { createPost, deletePost, getPosts, updatePost } from "./services/postService";
 Amplify.configure(awsExports);
 
 export default function App() {
   const Stack = createNativeStackNavigator();
 
-
-  useEffect(() => {
-    createPost('title', 'description', 'image', 'latitude', 'longitude', 'address', 'content', 'descHTML')
-  },[]
-  )
 
   return (
     <View style={styles.container}><NativeBaseProvider >

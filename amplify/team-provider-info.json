@@ -18,14 +18,11 @@
       "function": {
         "travelposts": {
           "deploymentBucketName": "amplify-travelapp-dev-191414-deployment",
-          "s3Key": "amplify-builds/travelposts-314a5a6f576336694635-build.zip"
+          "s3Key": "amplify-builds/travelposts-344463355931364d4c35-build.zip"
         }
       },
       "storage": {
         "zendb": {}
-      },
-      "api": {
-        "travelapis": {}
       }
     }
   }
